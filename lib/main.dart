@@ -11,6 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Splash-Screen',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -374,7 +375,7 @@ class _TextSearchScreenState extends State<TextSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Text Search'),
+        title: const Text('Text Search And Highlight'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
