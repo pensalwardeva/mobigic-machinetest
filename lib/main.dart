@@ -164,7 +164,12 @@ class GridScreen extends StatefulWidget {
 }
 
 class _GridScreenState extends State<GridScreen> {
-  late List<List<String>> grid;
+  List<List<String>> grid = []; // Declare grid as an instance variable
+  @override
+  void initState() {
+    super.initState();
+    grid = List.generate(widget.m, (index) => List.filled(widget.n, ""));
+  }
 
   void validateAndNavigate() {
     // Validate input and navigate to the next screen
@@ -202,11 +207,6 @@ class _GridScreenState extends State<GridScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    grid = List.generate(widget.m, (index) => List.filled(widget.n, ""));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,8 +287,89 @@ class TextSearchScreen extends StatefulWidget {
   @override
   _TextSearchScreenState createState() => _TextSearchScreenState();
 }
-
 class _TextSearchScreenState extends State<TextSearchScreen> {
+  List<List<bool>> highlightGrid = [];
+
+  void highlightText(String searchText) {
+    // Reset previous highlights
+    highlightGrid = List.generate(widget.m, (row) => List.filled(widget.n, false));
+
+    for (int row = 0; row < widget.m; row++) {
+      for (int col = 0; col < widget.n; col++) {
+        if (widget.enteredCharactersGrid[row][col] == (searchText[0] ?? '')) {
+          // Check in east direction
+          if (isTextPresent(row, col, 0, 1, searchText)) return;
+
+          // Check in south direction
+          if (isTextPresent(row, col, 1, 0, searchText)) return;
+
+          // Check in south-east direction
+          if (isTextPresent(row, col, 1, 1, searchText)) return;
+        }
+      }
+    }
+
+    setState(() {});
+  }
+
+  void searchAndHighlight(String searchText) {
+    // Reset previous highlights
+    highlightGrid = List.generate(widget.m, (row) => List.filled(widget.n, false));
+
+    for (int row = 0; row < widget.m; row++) {
+      for (int col = 0; col < widget.n; col++) {
+        if (widget.enteredCharactersGrid[row][col] == (searchText[0] ?? '')) {
+          // Check in east direction
+          if (isTextPresent(row, col, 0, 1, searchText)) return;
+
+          // Check in south direction
+          if (isTextPresent(row, col, 1, 0, searchText)) return;
+
+          // Check in south-east direction
+          if (isTextPresent(row, col, 1, 1, searchText)) return;
+        }
+      }
+    }
+
+    setState(() {});
+  }
+
+  bool isTextPresent(int row, int col, int rowIncrement, int colIncrement, String searchText) {
+    for (int i = 0; i < searchText.length; i++) {
+      int currentRow = row + i * rowIncrement;
+      int currentCol = col + i * colIncrement;
+
+      // Check if indices are within valid range
+      if (widget.enteredCharactersGrid.isNotEmpty &&
+          currentRow >= 0 &&
+          currentRow < widget.m &&
+          currentCol >= 0 &&
+          currentCol < widget.n) {
+        // Check if searchText is not empty
+        if (searchText.isNotEmpty) {
+          if (widget.enteredCharactersGrid[currentRow][currentCol] != (searchText[i] ?? '')) {
+            break;
+          }
+
+          if (i == searchText.length - 1) {
+            for (int j = 0; j < searchText.length; j++) {
+              highlightGrid[row + j * rowIncrement][col + j * colIncrement] = true;
+            }
+            setState(() {});
+            return true;
+          }
+        } else {
+          // Handle the case when searchText is empty
+          break;
+        }
+      } else {
+        // Handle the case when indices are out of range
+        break;
+      }
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -302,17 +383,15 @@ class _TextSearchScreenState extends State<TextSearchScreen> {
           children: [
             TextField(
               onChanged: (value) {
-                setState(() {
-                  // Update the search text as the user types
-                  widget.searchText = value.toUpperCase();
-                });
+                // Update the search text as the user types
+                highlightText(value.toUpperCase());
               },
               decoration: const InputDecoration(
                 labelText: 'Enter Text to Search',
               ),
             ),
             const SizedBox(height: 20),
-            // Display entered characters
+            // Display entered characters with highlights
             GridView.builder(
               shrinkWrap: true,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -322,179 +401,48 @@ class _TextSearchScreenState extends State<TextSearchScreen> {
                 int row = index ~/ widget.n;
                 int col = index % widget.n;
 
-                return Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black),
-                  ),
-                  child: Center(
-                    child: Text(widget.enteredCharactersGrid[row][col]),
+                return GestureDetector(
+                  onTap: () {
+                    // On cell tap, change the search text and highlight again
+                    searchAndHighlight(widget.enteredCharactersGrid[row][col]);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black),
+                      color: highlightGrid.isNotEmpty && highlightGrid[row][col]
+                          ? Colors.yellow
+                          : Colors.white,
+                    ),
+                    child: Center(
+                      child: Text(widget.enteredCharactersGrid[row][col]),
+                    ),
                   ),
                 );
               },
-              itemCount: widget.m * widget.n,
+              itemCount: widget.m * widget.n, // Fix the itemCount
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                if (widget.searchText.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) {
-                        return SearchResultScreen(
-                          m: widget.m,
-                          n: widget.n,
-                          enteredCharactersGrid: widget.enteredCharactersGrid,
-                          searchText: widget.searchText,
-                          enteredCharacters: [],
-                        );
-                      },
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a valid search text.'),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Search in Grid'),
-            ),
+            // const SizedBox(height: 20),
+            // ElevatedButton(
+            //   onPressed: () {
+            //     // Navigate to the search result screen
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => SearchResultScreen(
+            //           m: widget.m,
+            //           n: widget.n,
+            //           enteredCharacters: widget.enteredCharacters,
+            //           searchText: '',
+            //           enteredCharactersGrid: widget.enteredCharactersGrid,
+            //         ),
+            //       ),
+            //     );
+            //   },
+            //   child: const Text('Search in Grid'),
+            // ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class SearchResultScreen extends StatefulWidget {
-  final int m;
-  final int n;
-  final List<String> enteredCharacters;
-  final String searchText;
-  final List<List<String>> enteredCharactersGrid;
-
-  const SearchResultScreen({
-    Key? key,
-    required this.m,
-    required this.n,
-    required this.enteredCharacters,
-    required this.searchText,
-    required this.enteredCharactersGrid,
-  }) : super(key: key);
-
-  @override
-  _SearchResultScreenState createState() => _SearchResultScreenState();
-}
-
-class _SearchResultScreenState extends State<SearchResultScreen> {
-  List<List<bool>> highlightGrid = [];
-
-  @override
-  void initState() {
-    super.initState();
-    searchAndHighlight(widget.searchText);
-  }
-
-  bool searchAndHighlight(String searchText) {
-    // Reset previous highlights
-    highlightGrid = List.generate(widget.m, (row) => List.filled(widget.n, false));
-
-    bool isTextPresent(int row, int col, int rowIncrement, int colIncrement) {
-      for (int i = 0; i < searchText.length; i++) {
-        int currentRow = row + i * rowIncrement;
-        int currentCol = col + i * colIncrement;
-
-        if (currentRow < 0 ||
-            currentRow >= widget.m ||
-            currentCol < 0 ||
-            currentCol >= widget.n) {
-          break;
-        }
-
-        if (widget.enteredCharactersGrid[currentRow][currentCol] !=
-            (searchText[i] ?? '')) {
-          break;
-        }
-
-        if (i == searchText.length - 1) {
-          for (int j = 0; j < searchText.length; j++) {
-            highlightGrid[row + j * rowIncrement][col + j * colIncrement] = true;
-          }
-          return true;
-        }
-      }
-      return false;
-    }
-
-    for (int row = 0; row < widget.m; row++) {
-      for (int col = 0; col < widget.n; col++) {
-        Navigator.of(context).pop();
-        if (widget.enteredCharactersGrid[row][col] == (searchText[0] ?? '')) {
-          // Check in east direction
-          if (isTextPresent(row, col, 0, 1)) return true;
-
-          // Check in south direction
-          if (isTextPresent(row, col, 1, 0)) return true;
-
-          // Check in south-east direction
-          if (isTextPresent(row, col, 1, 1)) return true;
-        }
-      }
-    }
-
-    setState(() {});
-    return false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Result'),
-      ),
-      body: Column(
-        children: [
-          // Display highlighted grid
-          GridView.builder(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: widget.n,
-            ),
-            itemBuilder: (context, index) {
-              int row = index ~/ widget.n;
-              int col = index % widget.n;
-              return GestureDetector(
-                onTap: () {
-                  // On cell tap, change the search text and highlight again
-                  searchAndHighlight(widget.enteredCharactersGrid[row][col]);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black),
-                    color: highlightGrid[row][col] ? Colors.yellow : Colors.white,
-                  ),
-                  child: Center(
-                    child: Text(widget.enteredCharactersGrid[row][col]),
-                  ),
-                ),
-              );
-            },
-            itemCount: widget.m * widget.n,
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            onChanged: (value) {
-              // Update the search text as the user types
-              searchAndHighlight(value.toUpperCase());
-            },
-            decoration: const InputDecoration(
-              labelText: 'Enter Text to Search',
-            ),
-          ),
-        ],
       ),
     );
   }
